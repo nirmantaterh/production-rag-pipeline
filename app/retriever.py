@@ -1,46 +1,67 @@
-"""FAISS-based retriever with cross-encoder reranking."""
+"""
+BGE-M3 hybrid retrieval (dense + sparse) backed by Qdrant.
+BGE-M3 is the 2026 standard: single model for dense, sparse, and multi-vector in one pass.
+"""
 from __future__ import annotations
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.schema import Document
-from sentence_transformers import CrossEncoder
+import uuid
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, SparseVectorParams, PointStruct
+from FlagEmbedding import BGEM3FlagModel
 
-class FAISSRetriever:
-    EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-    RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+COLLECTION = "documents"
+DENSE_DIM = 1024
+MODEL_ID = "BAAI/bge-m3"
 
-    def __init__(self, index_path: str = "data/faiss_index", top_k: int = 5, rerank: bool = True):
+
+class HybridRetriever:
+    """Dense + sparse retrieval fused via Reciprocal Rank Fusion (RRF)."""
+
+    def __init__(self, qdrant_url: str = "http://localhost:6333", top_k: int = 20):
         self.top_k = top_k
-        self.rerank = rerank
-        self.embeddings = HuggingFaceEmbeddings(model_name=self.EMBED_MODEL)
-        self.reranker = CrossEncoder(self.RERANK_MODEL) if rerank else None
-        self._load_index(index_path)
+        self.client = QdrantClient(url=qdrant_url)
+        self.model = BGEM3FlagModel(MODEL_ID, use_fp16=True)
+        self._ensure_collection()
 
-    def _load_index(self, path: str):
-        try:
-            self.vectorstore = FAISS.load_local(path, self.embeddings)
-        except Exception:
-            self.vectorstore = None
+    def _ensure_collection(self):
+        existing = {c.name for c in self.client.get_collections().collections}
+        if COLLECTION not in existing:
+            self.client.create_collection(
+                collection_name=COLLECTION,
+                vectors_config={"dense": VectorParams(size=DENSE_DIM, distance=Distance.COSINE)},
+                sparse_vectors_config={"sparse": SparseVectorParams()},
+            )
 
-    def retrieve(self, query: str) -> list[Document]:
-        if self.vectorstore is None:
-            return []
-        k = self.top_k * 3 if self.rerank else self.top_k
-        docs_and_scores = self.vectorstore.similarity_search_with_score(query, k=k)
-        if not self.rerank or self.reranker is None:
-            return [d for d, _ in docs_and_scores[:self.top_k]]
-        pairs = [(query, doc.page_content) for doc, _ in docs_and_scores]
-        rerank_scores = self.reranker.predict(pairs)
-        ranked = sorted(zip(docs_and_scores, rerank_scores), key=lambda x: x[1], reverse=True)
-        results = []
-        for (doc, _), score in ranked[:self.top_k]:
-            doc.metadata["score"] = float(score)
-            results.append(doc)
-        return results
+    def index(self, documents: list[dict]):
+        """Embed and upsert documents with BGE-M3 dense + sparse vectors."""
+        texts = [d["text"] for d in documents]
+        out = self.model.encode(texts, batch_size=12, return_dense=True, return_sparse=True)
+        points = []
+        for i, doc in enumerate(documents):
+            lw = out["lexical_weights"][i]
+            points.append(PointStruct(
+                id=str(uuid.uuid4()),
+                vector={
+                    "dense": out["dense_vecs"][i].tolist(),
+                    "sparse": {"indices": list(lw.keys()), "values": list(lw.values())},
+                },
+                payload=doc,
+            ))
+        self.client.upsert(collection_name=COLLECTION, points=points)
 
-    @classmethod
-    def build_index(cls, documents: list[Document], save_path: str = "data/faiss_index"):
-        embeddings = HuggingFaceEmbeddings(model_name=cls.EMBED_MODEL)
-        vectorstore = FAISS.from_documents(documents, embeddings)
-        vectorstore.save_local(save_path)
-        return vectorstore
+    def retrieve(self, query: str) -> list[dict]:
+        """Hybrid search with RRF fusion of dense + sparse results."""
+        q_out = self.model.encode([query], return_dense=True, return_sparse=True)
+        dense_vec = q_out["dense_vecs"][0].tolist()
+        lw = q_out["lexical_weights"][0]
+        results = self.client.query_points(
+            collection_name=COLLECTION,
+            prefetch=[
+                {"query": dense_vec, "using": "dense", "limit": self.top_k},
+                {"query": {"indices": list(lw.keys()), "values": list(lw.values())},
+                 "using": "sparse", "limit": self.top_k},
+            ],
+            query={"fusion": "rrf"},
+            limit=self.top_k,
+        )
+        return [{"text": r.payload.get("text", ""), "score": r.score,
+                 "source": r.payload.get("source", "")} for r in results.points]
