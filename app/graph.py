@@ -1,9 +1,9 @@
 """
 Agentic RAG graph built with LangGraph.
-Stateful cyclic flow: route → retrieve → rerank → generate → evaluate → (retry if needed).
+Stateful cyclic flow: route → rewrite → retrieve → rerank → generate → evaluate → (retry if needed).
 """
 from __future__ import annotations
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 
@@ -11,6 +11,7 @@ from langgraph.graph import StateGraph, END
 class RAGState(TypedDict):
     query: str
     route: Literal["rag", "tool", "direct"]
+    rewritten_query: NotRequired[str]
     docs: list[dict]
     context: str
     answer: str
@@ -19,7 +20,7 @@ class RAGState(TypedDict):
     iteration: int
 
 
-def build_rag_graph(retriever, reranker, llm, evaluator):
+def build_rag_graph(retriever, reranker, llm, evaluator, rewriter=None):
     """Compile the LangGraph agentic RAG pipeline."""
 
     def analyze_query(state: RAGState) -> RAGState:
@@ -32,8 +33,13 @@ def build_rag_graph(retriever, reranker, llm, evaluator):
             route = "rag"
         return {**state, "route": route, "iteration": 0}
 
+    def rewrite_query(state: RAGState) -> RAGState:
+        rewritten = rewriter.rewrite(state["query"]) if rewriter else state["query"]
+        return {**state, "rewritten_query": rewritten}
+
     def retrieve(state: RAGState) -> RAGState:
-        docs = retriever.retrieve(state["query"])
+        q = state.get("rewritten_query") or state["query"]
+        docs = retriever.retrieve(q)
         return {**state, "docs": docs}
 
     def rerank_docs(state: RAGState) -> RAGState:
@@ -75,10 +81,11 @@ Question: {state["query"]}"""
         return {**state, "answer": r.content, "faithfulness": 1.0}
 
     def route_query(state: RAGState) -> str:
-        return {"rag": "retrieve", "tool": "tool", "direct": "direct"}[state["route"]]
+        return {"rag": "rewrite", "tool": "tool", "direct": "direct"}[state["route"]]
 
     g = StateGraph(RAGState)
     g.add_node("analyze", analyze_query)
+    g.add_node("rewrite", rewrite_query)
     g.add_node("retrieve", retrieve)
     g.add_node("rerank", rerank_docs)
     g.add_node("generate", generate)
@@ -88,6 +95,7 @@ Question: {state["query"]}"""
 
     g.set_entry_point("analyze")
     g.add_conditional_edges("analyze", route_query)
+    g.add_edge("rewrite", "retrieve")
     g.add_edge("retrieve", "rerank")
     g.add_edge("rerank", "generate")
     g.add_edge("generate", "evaluate")

@@ -6,6 +6,7 @@ from langchain_openai import ChatOpenAI
 from .retriever import HybridRetriever
 from .reranker import ColBERTReranker
 from .evaluator import RAGEvaluator
+from .rewriter import QueryRewriter
 from .graph import build_rag_graph
 
 app = FastAPI(title="Production RAG Pipeline", version="2.0.0")
@@ -14,7 +15,8 @@ retriever = HybridRetriever(qdrant_url=os.getenv("QDRANT_URL", "http://localhost
 reranker = ColBERTReranker()
 evaluator = RAGEvaluator()
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-rag_graph = build_rag_graph(retriever, reranker, llm, evaluator)
+rewriter = QueryRewriter(llm)
+rag_graph = build_rag_graph(retriever, reranker, llm, evaluator, rewriter)
 
 
 class QueryRequest(BaseModel):
