@@ -62,7 +62,7 @@ Question: {state["query"]}"""
                 "iteration": state.get("iteration", 0) + 1}
 
     def evaluate(state: RAGState) -> RAGState:
-        score = evaluator.score_faithfulness(state["answer"], state.get("context", ""))
+        score = evaluator.score_faithfulness(state["answer"], state.get("context", ""), state["query"])
         evaluator.log(query=state["query"], answer=state["answer"],
                       context=state.get("context", ""),
                       faithfulness=score, latency_ms=state.get("latency_ms", 0))

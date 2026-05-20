@@ -26,7 +26,7 @@ LangGraph Orchestrator
 | Component | Technology | Why |
 |-----------|-----------|-----|
 | Orchestration | **LangGraph** | Stateful graph with conditional retries |
-| Embeddings | **BGE-M3** | Dense + sparse + multi-vector in one model pass |
+| Embeddings | **BGE-M3** | Dense + sparse vectors in one model pass, fused via RRF |
 | Vector DB | **Qdrant** | Native hybrid search, RRF fusion |
 | Reranking | **ColBERT** via RAGatouille | Late interaction, faster than cross-encoders |
 | Query rewriting | **LLM + LCEL** | Improves retrieval recall on ambiguous queries |

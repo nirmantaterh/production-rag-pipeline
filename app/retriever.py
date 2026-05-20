@@ -1,6 +1,6 @@
 """
 BGE-M3 hybrid retrieval (dense + sparse) backed by Qdrant.
-BGE-M3 handles dense, sparse, and multi-vector retrieval in a single model pass.
+Uses dense + sparse vectors fused via RRF. BGE-M3 also supports multi-vector but that is not wired here.
 """
 from __future__ import annotations
 import uuid

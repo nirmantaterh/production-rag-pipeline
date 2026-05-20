@@ -19,3 +19,6 @@ for _mod in [
     "pydantic",
 ]:
     sys.modules[_mod] = MagicMock()
+
+# ragas and datasets are NOT stubbed — the ImportError triggers the
+# sentence-overlap fallback in RAGEvaluator.score_faithfulness
