@@ -1,0 +1,13 @@
+Retrieval-Augmented Generation (RAG) is a technique that enhances language model outputs by retrieving relevant documents from an external knowledge base before generating a response. This grounds the model in factual, up-to-date information and reduces hallucinations.
+
+A standard RAG pipeline has three stages: indexing, retrieval, and generation. During indexing, documents are chunked, embedded into dense vectors, and stored in a vector database. During retrieval, the user query is embedded and the nearest document chunks are fetched using approximate nearest neighbor search. During generation, the retrieved chunks are concatenated as context into the prompt sent to the LLM.
+
+Dense retrieval uses bi-encoder models to embed queries and documents into the same vector space. Models like BGE-M3, E5, and OpenAI text-embedding-3 are commonly used. BGE-M3 is notable for supporting dense, sparse, and multi-vector retrieval in a single model pass.
+
+Sparse retrieval uses term-frequency methods like BM25 or the SPLADE model family to produce sparse lexical vectors. Hybrid retrieval combines dense and sparse signals using Reciprocal Rank Fusion (RRF), which typically outperforms either alone.
+
+Reranking is applied after initial retrieval to re-score the top-k candidates. Cross-encoder models (e.g., BGE-reranker) process query-document pairs jointly for high accuracy but are slow. ColBERT uses late-interaction token-level matching, achieving near cross-encoder accuracy at 10-100x the speed.
+
+Agentic RAG extends the basic pipeline with routing, query rewriting, iterative retrieval, and self-critique loops. LangGraph is commonly used to implement these stateful agentic workflows, allowing conditional branching and retry logic based on faithfulness scores.
+
+Common failure modes in RAG include retrieval missing the relevant passage (low recall), retrieved passages being irrelevant (low precision), and the LLM ignoring context and hallucinating (low faithfulness). Evaluation frameworks like RAGAS measure context recall, context precision, faithfulness, and answer relevance.

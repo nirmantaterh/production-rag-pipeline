@@ -1,0 +1,11 @@
+Transformers are a deep learning architecture introduced in the paper "Attention Is All You Need" (Vaswani et al., 2017). They replace recurrent and convolutional layers with a self-attention mechanism, allowing the model to weigh the importance of different tokens in a sequence regardless of their distance from each other.
+
+The core building block is the multi-head self-attention layer. Given a sequence of token embeddings, it computes query, key, and value projections for each token. Attention scores are computed as scaled dot products between queries and keys, normalized with softmax. The output is a weighted sum of the value vectors.
+
+Transformers consist of an encoder and decoder stack. The encoder processes the input sequence into contextual representations. The decoder generates output tokens autoregressively, attending to both its own previous outputs and the encoder representations via cross-attention.
+
+BERT (Bidirectional Encoder Representations from Transformers) uses only the encoder stack and is pre-trained with masked language modeling and next sentence prediction objectives. GPT models use only the decoder stack and are trained autoregressively to predict the next token.
+
+Positional encodings are added to token embeddings to inject sequence order information, since self-attention is permutation-invariant. Learned or sinusoidal positional encodings are both commonly used.
+
+Modern large language models such as GPT-4, LLaMA, and Claude are transformer-based architectures scaled to billions of parameters, trained on diverse internet-scale text corpora using self-supervised objectives.
