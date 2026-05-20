@@ -1,6 +1,6 @@
 """
-Agentic RAG graph built with LangGraph.
-Stateful cyclic flow: route → rewrite → retrieve → rerank → generate → evaluate → (retry if needed).
+RAG graph built with LangGraph.
+Flow: route -> rewrite -> retrieve -> rerank -> generate -> evaluate -> (retry if needed).
 """
 from __future__ import annotations
 from typing import Literal, NotRequired, TypedDict
@@ -21,7 +21,7 @@ class RAGState(TypedDict):
 
 
 def build_rag_graph(retriever, reranker, llm, evaluator, rewriter=None):
-    """Compile the LangGraph agentic RAG pipeline."""
+    """Compile the LangGraph RAG pipeline."""
 
     def analyze_query(state: RAGState) -> RAGState:
         q = state["query"].lower()
@@ -50,7 +50,7 @@ def build_rag_graph(retriever, reranker, llm, evaluator, rewriter=None):
     def generate(state: RAGState) -> RAGState:
         import time
         start = time.perf_counter()
-        prompt = f"""Answer using ONLY the context below. If the context is insufficient, say so — do not hallucinate.
+        prompt = f"""Answer using ONLY the context below. If the context is insufficient, say so.
 
 Context:
 {state.get("context", "")}

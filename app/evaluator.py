@@ -1,4 +1,4 @@
-"""MLflow RAG evaluation with RAGAS-style faithfulness scoring."""
+"""MLflow experiment tracking with sentence-level faithfulness scoring."""
 from __future__ import annotations
 import mlflow
 

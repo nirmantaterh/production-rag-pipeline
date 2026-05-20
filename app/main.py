@@ -1,4 +1,4 @@
-"""FastAPI serving layer — wraps LangGraph agentic RAG pipeline."""
+"""FastAPI serving layer for the LangGraph RAG pipeline."""
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel

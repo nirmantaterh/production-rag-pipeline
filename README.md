@@ -1,6 +1,6 @@
 # Production RAG Pipeline
 
-An agentic RAG system built on the 2026 stack: **LangGraph**, **BGE-M3 hybrid search**, **Qdrant**, and **ColBERT reranking**.
+A RAG pipeline built with **LangGraph**, **BGE-M3 hybrid search**, **Qdrant**, and **ColBERT reranking**.
 
 ## Architecture
 
@@ -25,14 +25,14 @@ LangGraph Orchestrator
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| Orchestration | **LangGraph** | Stateful agentic loops, conditional retries |
+| Orchestration | **LangGraph** | Stateful graph with conditional retries |
 | Embeddings | **BGE-M3** | Dense + sparse + multi-vector in one model pass |
 | Vector DB | **Qdrant** | Native hybrid search, RRF fusion |
 | Reranking | **ColBERT** via RAGatouille | Late interaction, faster than cross-encoders |
 | Query rewriting | **LLM + LCEL** | Improves retrieval recall on ambiguous queries |
 | LLM | **GPT-4o-mini** | Grounded generation |
-| Evaluation | **MLflow** | Experiment tracking — faithfulness, latency, answer length |
-| Serving | **FastAPI** | Async, production-ready |
+| Evaluation | **MLflow** | Experiment tracking: faithfulness, latency, answer length |
+| Serving | **FastAPI** | Async |
 
 ## Quick Start
 
@@ -57,7 +57,7 @@ uvicorn app.main:app --reload
 ```
 production-rag-pipeline/
 ├── app/
-│   ├── graph.py        # LangGraph agentic flow
+│   ├── graph.py        # LangGraph RAG graph
 │   ├── retriever.py    # BGE-M3 + Qdrant hybrid retrieval (dense + sparse, RRF)
 │   ├── reranker.py     # ColBERT reranking via RAGatouille
 │   ├── rewriter.py     # LLM query rewriting (LCEL)
@@ -92,3 +92,7 @@ Tests stub all heavy dependencies (BGE-M3, Qdrant, ColBERT, LangGraph) so they r
 ```
 POST /query   {"query": "What is RAG?"}
 ```
+
+---
+
+Planned using [Claude](https://claude.ai).

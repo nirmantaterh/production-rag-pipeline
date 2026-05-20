@@ -1,6 +1,6 @@
 """
 BGE-M3 hybrid retrieval (dense + sparse) backed by Qdrant.
-BGE-M3 is the 2026 standard: single model for dense, sparse, and multi-vector in one pass.
+BGE-M3 handles dense, sparse, and multi-vector retrieval in a single model pass.
 """
 from __future__ import annotations
 import uuid
