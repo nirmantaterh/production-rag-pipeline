@@ -91,5 +91,4 @@ Tests stub all heavy dependencies (BGE-M3, Qdrant, ColBERT, LangGraph) so they r
 
 ```
 POST /query   {"query": "What is RAG?"}
-GET  /health
 ```
