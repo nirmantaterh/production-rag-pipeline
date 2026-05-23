@@ -9,7 +9,7 @@ Agentic RAG pipeline built with **LangGraph**, **BGE-M3 hybrid search**, **Qdran
 
 ---
 
-## Architecture
+## Architecture:
 
 ```
 User Query
