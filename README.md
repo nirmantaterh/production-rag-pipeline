@@ -1,6 +1,13 @@
 # Production RAG Pipeline
 
-A RAG pipeline built with **LangGraph**, **BGE-M3 hybrid search**, **Qdrant**, and **ColBERT reranking**.
+Agentic RAG pipeline built with **LangGraph**, **BGE-M3 hybrid search**, **Qdrant**, and **ColBERT reranking**. Runs fully local (no OpenAI required) or with any OpenAI-compatible endpoint.
+
+![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-0.2-orange)
+![Qdrant](https://img.shields.io/badge/Qdrant-vector%20db-red)
+![Docker](https://img.shields.io/badge/Docker-compose-blue?logo=docker&logoColor=white)
+
+---
 
 ## Architecture
 
@@ -12,27 +19,41 @@ LangGraph Orchestrator
     │
     ├──► Route: RAG / Tool / Direct
     │
-    ├──► [RAG]
-    │       ├─ Query Rewriting          (LLM-based, improves sparse + dense recall)
+    ├──► [RAG Path]
+    │       ├─ Query Rewriting          (LLM-based — improves sparse + dense recall)
     │       ├─ BGE-M3 Hybrid Retrieval  (dense + sparse vectors, Qdrant RRF fusion)
-    │       ├─ ColBERT Token Reranking  (late interaction, 10-100x faster than cross-encoder)
-    │       └─ Faithfulness Gate        (retry generation if score < 0.5, max 2x)
+    │       ├─ ColBERT Reranking        (late interaction, 10-100x faster than cross-encoder)
+    │       └─ Faithfulness Gate        (retry generation if score < 0.5, max 2 retries)
     │
     └──► LLM Generator → MLflow Evaluator (faithfulness, latency, context length)
 ```
+
+---
 
 ## Stack
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| Orchestration | **LangGraph** | Stateful graph with conditional retries |
+| Orchestration | **LangGraph** | Stateful graph with conditional retries and routing |
 | Embeddings | **BGE-M3** | Dense + sparse vectors in one model pass, fused via RRF |
-| Vector DB | **Qdrant** | Native hybrid search, RRF fusion |
-| Reranking | **ColBERT** via RAGatouille | Late interaction, faster than cross-encoders |
-| Query rewriting | **LLM + LCEL** | Improves retrieval recall on ambiguous queries |
-| LLM | **GPT-4o-mini** | Grounded generation |
-| Evaluation | **MLflow** | Experiment tracking: faithfulness, latency, answer length |
-| Serving | **FastAPI** | Async |
+| Vector DB | **Qdrant** | Native hybrid search with RRF fusion built-in |
+| Reranking | **ColBERT** via RAGatouille | Late interaction — faster than cross-encoders at inference |
+| Query rewriting | **LLM + LCEL** | Improves retrieval recall on ambiguous or short queries |
+| LLM | **GPT-4o-mini** (swappable) | Grounded generation; swap via `.env` |
+| Evaluation | **MLflow** | Tracks faithfulness, latency, answer length per run |
+| Serving | **FastAPI** | Async, single endpoint |
+
+---
+
+## Key Design Decisions
+
+**BGE-M3 over sentence-transformers**: BGE-M3 produces dense + sparse (SPLADE-style) vectors in one forward pass. Qdrant fuses them via Reciprocal Rank Fusion — no separate BM25 index to maintain.
+
+**ColBERT over cross-encoder reranking**: Cross-encoders rerun the full model per (query, doc) pair at inference. ColBERT precomputes document token embeddings at index time and uses late interaction (MaxSim) at query time — same reranking quality, fraction of the latency.
+
+**LangGraph over LangChain chains**: Explicit state machine with conditional edges. Retries (faithfulness gate), fallback routing, and observability are graph edges — not hidden chain behavior.
+
+---
 
 ## Quick Start
 
@@ -40,24 +61,34 @@ LangGraph Orchestrator
 git clone https://github.com/nirmantaterh/production-rag-pipeline
 cd production-rag-pipeline
 
-# Start the full stack (app + Qdrant + MLflow)
-cp .env.example .env  # add your OPENAI_API_KEY
+# Full stack (app + Qdrant + MLflow)
+cp .env.example .env  # add OPENAI_API_KEY
 docker compose up --build
 
 # Or run locally
 pip install -r requirements.txt
 docker compose up qdrant mlflow -d
-
 python scripts/index_documents.py --source data/docs/
 uvicorn app.main:app --reload
 ```
+
+---
+
+## API
+
+```
+POST /query
+{"query": "What is RAG?"}
+```
+
+---
 
 ## Project Structure
 
 ```
 production-rag-pipeline/
 ├── app/
-│   ├── graph.py        # LangGraph RAG graph
+│   ├── graph.py        # LangGraph RAG graph (routing + retry logic)
 │   ├── retriever.py    # BGE-M3 + Qdrant hybrid retrieval (dense + sparse, RRF)
 │   ├── reranker.py     # ColBERT reranking via RAGatouille
 │   ├── rewriter.py     # LLM query rewriting (LCEL)
@@ -71,12 +102,14 @@ production-rag-pipeline/
 │   ├── test_rewriter.py
 │   ├── test_reranker.py
 │   └── test_chunking.py
-├── data/docs/               # Drop .txt files here to index
+├── data/docs/               # Drop .txt/.pdf files here to index
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
 └── .env.example
 ```
+
+---
 
 ## Running Tests
 
@@ -85,14 +118,4 @@ pip install pytest
 pytest tests/
 ```
 
-Tests stub all heavy dependencies (BGE-M3, Qdrant, ColBERT, LangGraph) so they run without a full install.
-
-## API
-
-```
-POST /query   {"query": "What is RAG?"}
-```
-
----
-
-Planned using [Claude](https://claude.ai).
+All tests stub heavy dependencies (BGE-M3, Qdrant, ColBERT, LangGraph) — run without a full install.
