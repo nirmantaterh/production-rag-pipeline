@@ -1,0 +1,31 @@
+{
+  "dataset": "BeIR/scifact (test qrels)",
+  "corpus_size": 1000,
+  "num_queries": 150,
+  "k": 10,
+  "rerank_pool": 20,
+  "model": "BAAI/bge-m3",
+  "seed": 42,
+  "configs": {
+    "dense": {
+      "recall@10": 0.8773,
+      "mrr@10": 0.7593,
+      "ndcg@10": 0.7866
+    },
+    "sparse": {
+      "recall@10": 0.875,
+      "mrr@10": 0.7659,
+      "ndcg@10": 0.7864
+    },
+    "hybrid": {
+      "recall@10": 0.916,
+      "mrr@10": 0.7874,
+      "ndcg@10": 0.816
+    },
+    "hybrid+rerank": {
+      "recall@10": 0.916,
+      "mrr@10": 0.8009,
+      "ndcg@10": 0.8252
+    }
+  }
+}

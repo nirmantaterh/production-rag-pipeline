@@ -55,6 +55,25 @@ LangGraph Orchestrator
 
 ---
 
+## Retrieval Evaluation
+
+Retrieval quality measured on [BEIR SciFact](https://github.com/beir-cellar/beir) (test qrels), comparing the pipeline's actual retrieval stages against each other. 1000-document corpus (all gold documents + random fillers), 150 queries, fixed seed. Full methodology in [`scripts/evaluate_retrieval.py`](scripts/evaluate_retrieval.py); raw output in [`eval/results_scifact.json`](eval/results_scifact.json).
+
+| Configuration | Recall@10 | MRR@10 | nDCG@10 |
+|---------------|-----------|--------|---------|
+| Dense only (BGE-M3) | 0.877 | 0.759 | 0.787 |
+| Sparse only (BGE-M3 lexical) | 0.875 | 0.766 | 0.786 |
+| Hybrid RRF (dense + sparse) | **0.916** | 0.787 | 0.816 |
+| Hybrid + multi-vector rerank | **0.916** | **0.801** | **0.825** |
+
+Hybrid fusion recovers cases where dense and sparse retrieval individually miss the gold document (+4pp recall over either alone). Reranking with BGE-M3's multi-vector (ColBERT-style late interaction) output doesn't change what's retrieved but improves how it's ordered — MRR and nDCG both increase at fixed recall, meaning the correct document surfaces higher and more consistently.
+
+Reproduce:
+```bash
+pip install FlagEmbedding qdrant-client datasets
+python scripts/evaluate_retrieval.py --corpus-size 1000 --max-queries 150
+```
+
 ## Quick Start
 
 ```bash
